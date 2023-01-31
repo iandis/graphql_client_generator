@@ -60,15 +60,17 @@ class $clazzImplName implements $clazzName {
 """);
 
   for (final MethodElement method in gqlMethods) {
-    _validateParameter(method);
-    _validateReturnType(method.returnType);
-    final DartObject annotation = _gqlMethodChecker.firstAnnotationOf(
+    final DartObject gqlAnnotation = _gqlMethodChecker.firstAnnotationOf(
       method,
       throwOnUnresolved: false,
     )!;
+    final ConstantReader gqlAnnotationReader = ConstantReader(gqlAnnotation);
+    _validateParameter(method);
+    _validateReturnType(annotation, gqlAnnotationReader, method.returnType);
     _generateMethod(
       buffer: resultBuffer,
-      annotationReader: ConstantReader(annotation),
+      gqlClientAnnotationReader: annotation,
+      gqlAnnotationReader: gqlAnnotationReader,
       hasParameter: method.parameters.isNotEmpty,
       methodName: method.name,
       returnType: method.returnType,
@@ -98,33 +100,60 @@ void _validateParameter(MethodElement method) {
   }
 }
 
-void _validateReturnType(DartType returnType) {
-  if (!const TypeChecker.fromRuntime(Future<QueryResult<Object?>>)
-      .isAssignableFromType(returnType)) {
+void _validateReturnType(
+  ConstantReader gqlClientAnnotationReader,
+  ConstantReader gqlAnnotationReader,
+  DartType returnType,
+) {
+  if (!returnType.isDartAsyncFuture) {
     throw InvalidGenerationSourceError(
-      'The annotated method must return a `Future<QueryResult>`.',
+      'The annotated method must be a `Future`.',
+      element: returnType.element,
+    );
+  }
+  final String? gqlClientResultMapper =
+      _getResultMapper(gqlClientAnnotationReader);
+  final String? gqlResultMapper = _getResultMapper(gqlAnnotationReader);
+  final bool hasResultMapper =
+      gqlClientResultMapper != null || gqlResultMapper != null;
+  final bool isFutureQueryResult =
+      const TypeChecker.fromRuntime(Future<QueryResult<Object?>>)
+          .isAssignableFromType(returnType);
+  if (!(isFutureQueryResult || hasResultMapper)) {
+    throw InvalidGenerationSourceError(
+      'The annotated method must be a `Future<QueryResult>`.',
       element: returnType.element,
     );
   }
 }
 
+/// Get the name of the function that maps the result of the query from
+/// [GQLClient.mapper] or [GQLClient.mapper]
+String? _getResultMapper(ConstantReader annotationReader) {
+  final ConstantReader mapperReader = annotationReader.read('mapper');
+  if (mapperReader.isNull) return null;
+  return mapperReader.objectValue.toFunctionValue()?.qualifiedName;
+}
+
 void _generateMethod({
   required StringBuffer buffer,
-  required ConstantReader annotationReader,
+  required ConstantReader gqlClientAnnotationReader,
+  required ConstantReader gqlAnnotationReader,
   required bool hasParameter,
   required String methodName,
   required DartType returnType,
 }) {
-  final ConstantReader gqlNameReader = annotationReader.read('name');
+  final ConstantReader gqlNameReader = gqlAnnotationReader.read('name');
   final String? gqlName =
       gqlNameReader.isNull ? null : gqlNameReader.stringValue;
 
-  final String gqlBody = annotationReader.read('body').stringValue;
+  final String gqlBody = gqlAnnotationReader.read('body').stringValue;
 
   final GQLType gqlType = GQLType.values.firstWhere((GQLType type) =>
-      type.name == annotationReader.read('type').read('_name').stringValue);
+      type.name == gqlAnnotationReader.read('type').read('_name').stringValue);
 
-  final ConstantReader fetchPolicyReader = annotationReader.read('fetchPolicy');
+  final ConstantReader fetchPolicyReader =
+      gqlAnnotationReader.read('fetchPolicy');
   final FetchPolicy? gqlFetchPolicy = !fetchPolicyReader.isNull
       ? FetchPolicy.values.firstWhere((FetchPolicy policy) =>
           policy.name == fetchPolicyReader.read('_name').stringValue)
@@ -138,8 +167,9 @@ void _generateMethod({
   final String returnTypeName = returnType.getDisplayString(
     withNullability: false,
   );
-  final String parserFunctionName = _getParserFunctionName(annotationReader);
-  final String resultType = _getResultType(returnType);
+  final String parserFunctionName = _getParserFunctionName(gqlAnnotationReader);
+  final String resultType =
+      _getResultType(gqlAnnotationReader.objectValue.type!);
   final String parameterName =
       hasParameter ? 'Map<String, dynamic> variables' : '';
   buffer.writeln(
@@ -168,20 +198,12 @@ void _generateMethod({
     parserFunctionName: parserFunctionName,
   );
 
-  switch (gqlType) {
-    case GQLType.mutation:
-      buffer.writeln(
-        '''    );
-    return _client.mutate(options);''',
-      );
-      break;
-    case GQLType.query:
-      buffer.writeln(
-        '''    );
-    return _client.query(options);''',
-      );
-      break;
-  }
+  _createReturnBody(
+    buffer: buffer,
+    gqlType: gqlType,
+    gqlAnnotationReader: gqlAnnotationReader,
+    gqlClientAnnotationReader: gqlClientAnnotationReader,
+  );
 
   buffer.writeln('  }');
 }
@@ -220,20 +242,74 @@ void _fillOptions({
   buffer.writeln('      parserFn: $parserFunctionName,');
 }
 
-String _getParserFunctionName(ConstantReader annotationReader) {
-  return annotationReader
+void _createReturnBody({
+  required StringBuffer buffer,
+  required GQLType gqlType,
+  required ConstantReader gqlAnnotationReader,
+  required ConstantReader gqlClientAnnotationReader,
+}) {
+  buffer.writeln('    );');
+  final String? gqlClientResultMapper =
+      _getResultMapper(gqlClientAnnotationReader);
+  final String? gqlResultMapper = _getResultMapper(gqlAnnotationReader);
+  final bool hasResultMapper =
+      gqlClientResultMapper != null || gqlResultMapper != null;
+  if (hasResultMapper) {
+    _createReturnBodyWithResultMapper(
+      buffer: buffer,
+      gqlType: gqlType,
+      gqlClientResultMapper: gqlClientResultMapper,
+      gqlResultMapper: gqlResultMapper,
+    );
+    return;
+  }
+  _createReturnBodyWithQueryResult(buffer: buffer, gqlType: gqlType);
+}
+
+void _createReturnBodyWithResultMapper({
+  required StringBuffer buffer,
+  required GQLType gqlType,
+  required String? gqlClientResultMapper,
+  required String? gqlResultMapper,
+}) {
+  assert(gqlClientResultMapper != null || gqlResultMapper != null);
+  final String resultMapper = gqlResultMapper ?? gqlClientResultMapper!;
+  switch (gqlType) {
+    case GQLType.mutation:
+      buffer.writeln('return _client.mutate(options).then($resultMapper);');
+      break;
+    case GQLType.query:
+      buffer.writeln('return _client.query(options).then($resultMapper);');
+      break;
+  }
+}
+
+void _createReturnBodyWithQueryResult({
+  required StringBuffer buffer,
+  required GQLType gqlType,
+}) {
+  switch (gqlType) {
+    case GQLType.mutation:
+      buffer.writeln('return _client.mutate(options);');
+      break;
+    case GQLType.query:
+      buffer.writeln('return _client.query(options);');
+      break;
+  }
+}
+
+String _getParserFunctionName(ConstantReader gqlAnnotationReader) {
+  return gqlAnnotationReader
       .read('parser')
       .objectValue
       .toFunctionValue()!
       .qualifiedName;
 }
 
-String _getResultType(DartType returnType) {
-  final ParameterizedType parameterizedType = returnType as ParameterizedType;
-  final DartType queryResultType = parameterizedType.typeArguments.first;
-  final ParameterizedType queryResultParameterizedType =
-      queryResultType as ParameterizedType;
-  final DartType queryResultData =
-      queryResultParameterizedType.typeArguments.first;
-  return queryResultData.getDisplayString(withNullability: false);
+String _getResultType(DartType gqlAnnotationType) {
+  final ParameterizedType parameterizedType =
+      gqlAnnotationType as ParameterizedType;
+  final DartType gqlAnnotationResultType =
+      parameterizedType.typeArguments.first;
+  return gqlAnnotationResultType.getDisplayString(withNullability: false);
 }
