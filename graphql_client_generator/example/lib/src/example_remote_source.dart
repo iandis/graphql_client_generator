@@ -1,10 +1,11 @@
+import 'package:example/src/app_gql_client.dart';
 import 'package:example/src/example.dart';
 import 'package:graphql/client.dart';
 import 'package:graphql_client_annotation/graphql_client_annotation.dart';
 
 part 'example_remote_source.gqlc.dart';
 
-@gqlClient
+@appGQLClient
 abstract class ExampleRemoteSource {
   const factory ExampleRemoteSource(
     GraphQLClient client,
@@ -14,21 +15,22 @@ abstract class ExampleRemoteSource {
     parser: Example.fromMap,
     fetchPolicy: FetchPolicy.networkOnly,
     r'''
-    query detailDistrict($id: String!) {
-      detailDistrict(detailDistrictInput: { districtId: $id }) {
+    query detailExample($id: String!) {
+      detailExample(detailExampleInput: { exampleId: $id }) {
         id
         name
       }
     }
     ''',
   )
-  Future<QueryResult<Example>> getExample1(Map<String, dynamic> variables);
+  Future<MyEntity<Example>> getExample1(Map<String, dynamic> variables);
 
   @Mutation(
     parser: Example.fromMap,
+    mapper: queryResultMapper2,
     r'''
     query example {
     ''',
   )
-  Future<QueryResult<Example>> getExample2();
+  Future<MyEntity<Object>> getExample2();
 }

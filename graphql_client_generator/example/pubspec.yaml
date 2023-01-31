@@ -13,6 +13,7 @@ dependencies:
     path: ../../graphql_client_annotation
   graphql_client_generator:
     path: ../../graphql_client_generator
+  meta: ^1.9.0
 
 dev_dependencies:
   build_runner: ^2.3.3

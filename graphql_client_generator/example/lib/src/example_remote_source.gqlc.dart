@@ -17,33 +17,33 @@ class _ExampleRemoteSource implements ExampleRemoteSource {
   final GraphQLClient _client;
 
   static final _$getExample1Gql = gql(r'''
-    query detailDistrict($id: String!) {
-      detailDistrict(detailDistrictInput: { districtId: $id }) {
+    query detailExample($id: String!) {
+      detailExample(detailExampleInput: { exampleId: $id }) {
         id
         name
       }
     }
     ''');
   @override
-  Future<QueryResult<Example>> getExample1(Map<String, dynamic> variables) {
+  Future<MyEntity<Example>> getExample1(Map<String, dynamic> variables) {
     final QueryOptions<Example> options = QueryOptions<Example>(
       document: _$getExample1Gql,
       variables: variables,
       fetchPolicy: FetchPolicy.networkOnly,
       parserFn: Example.fromMap,
     );
-    return _client.query(options);
+    return _client.query(options).then(queryResultMapper);
   }
 
   static final _$getExample2Gql = gql(r'''
     query example {
     ''');
   @override
-  Future<QueryResult<Example>> getExample2() {
+  Future<MyEntity<Object>> getExample2() {
     final MutationOptions<Example> options = MutationOptions<Example>(
       document: _$getExample2Gql,
       parserFn: Example.fromMap,
     );
-    return _client.mutate(options);
+    return _client.mutate(options).then(queryResultMapper2);
   }
 }
