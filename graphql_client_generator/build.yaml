@@ -1,6 +1,6 @@
 builders:
   gql_client_builder:
-    import: "package:graphql_client_generator/builder.dart"
+    import: "package:graphql_client_gen/builder.dart"
     builder_factories: ["gqlClientBuilder"]
     build_extensions: { ".dart": [".gqlc.dart"] }
     auto_apply: dependents

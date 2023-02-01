@@ -4,7 +4,7 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:graphql/client.dart';
 import 'package:graphql_client_annotation/graphql_client_annotation.dart';
-import 'package:graphql_client_generator/src/utils.dart';
+import 'package:graphql_client_gen/src/utils.dart';
 import 'package:source_gen/source_gen.dart';
 
 const TypeChecker _gqlMethodChecker = TypeChecker.fromRuntime(GQL);

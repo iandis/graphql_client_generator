@@ -4,7 +4,7 @@ The annotated classes must depend on `GraphQLClient` from [this package](https:/
 
 ## Setup
 
-To configure your project for the latest released version of `graphql_client_generator`, see the [example](https://github.com/iandis/graphql_client_generator/tree/main/graphql_client_generator/example).
+To configure your project for the latest released version of `graphql_client_gen`, see the [example](https://github.com/iandis/graphql_client_generator/tree/main/graphql_client_generator/example).
 
 ## Example
 

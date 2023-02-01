@@ -1,4 +1,4 @@
-name: graphql_client_generator
+name: graphql_client_gen
 description: Opinionated graphql client class generator.
 version: 0.0.1
 repository: https://github.com/iandis/graphql_client_generator/tree/main/graphql_client_generator
