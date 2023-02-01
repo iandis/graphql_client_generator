@@ -1,12 +1,12 @@
 name: graphql_client_generator
 description: Opinionated graphql client class generator.
 version: 0.0.1
-repository: https://github.com/iandis/graphql_client_generator
+repository: https://github.com/iandis/graphql_client_generator/tree/main/graphql_client_generator
 
 # publish_to: 'none'
 
 environment:
-  sdk: '>=2.18.6 <3.0.0'
+  sdk: ">=2.18.6 <3.0.0"
 
 dependencies:
   analyzer: ">=4.6.0 <6.0.0"
