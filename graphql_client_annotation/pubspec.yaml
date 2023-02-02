@@ -1,6 +1,6 @@
 name: graphql_client_annotation
 description: Annotations for generating opinionated graphql client class.
-version: 0.0.1
+version: 0.0.2
 repository: https://github.com/iandis/graphql_client_generator/tree/main/graphql_client_annotation
 
 environment:
