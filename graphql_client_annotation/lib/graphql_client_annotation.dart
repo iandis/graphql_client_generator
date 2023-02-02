@@ -7,7 +7,7 @@ enum GQLType {
   query,
 }
 
-typedef QueryResultMapper = Object Function<T>(QueryResult<T> result);
+typedef QueryResultMapper = dynamic Function<T>(QueryResult<T> result);
 
 const GQLClient gqlClient = GQLClient();
 
